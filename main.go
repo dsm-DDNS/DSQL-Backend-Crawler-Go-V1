@@ -92,7 +92,7 @@ func main() {
 	contextVar, cancelFunc = chromedp.NewContext(contextVar)
 	defer cancelFunc()
 
-	contextVar, cancelFunc = context.WithTimeout(contextVar, 50*time.Second)
+	contextVar, cancelFunc = context.WithTimeout(contextVar, 8*time.Second)
 	defer cancelFunc()
 
 	var str string
@@ -112,8 +112,9 @@ func main() {
 
 	s := sel{selection: doc.Selection}
 
-	content := strings.ReplaceAll(s.GetData(), "#", "")
-	println(content)
+	//content := strings.ReplaceAll(s.GetData(), "#", "")
+	content := s.GetData()
+
 	InsertBlogContent(&url, &content)
 
 	if err != nil {
@@ -129,24 +130,30 @@ func ExistsBlogContentByUrl(url *string) bool {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
 	println("[EXISTS]: ", title)
 
 	return true
 }
 
 func InsertBlogContent(url, content *string) {
-
-	_, err := db.NamedExec(`UPDATE post SET content=:content WHERE url = :url`,
-		map[string]interface{}{
-			"url":     url,
-			"content": content,
+	var err error
+	if len(*content) == 0 {
+		_, err = db.NamedExec(`UPDATE post SET content=null WHERE url = :url`, map[string]interface{}{
+			"url": url,
 		})
-
+	} else {
+		_, err = db.NamedExec(`UPDATE post SET content=:content WHERE url = :url`,
+			map[string]interface{}{
+				"url":     url,
+				"content": content,
+			})
+	}
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	log.Println("[INSERTED]: ", *url)
+	log.Println("[INSERTED]: \n", *content)
 }
 
 func (s *sel) GetData() string {
@@ -155,25 +162,39 @@ func (s *sel) GetData() string {
 	var f func(*html.Node)
 
 	f = func(node *html.Node) {
-		if node.Type == html.TextNode {
-			if !strings.Contains(node.Data, "\n") {
-				buf.WriteString(node.Data + "\n")
-			}
-		}
-
+		//for _, i := range node.Attr {
+		//	//if i.Key == "href" {
+		//	//	link := strings.ReplaceAll(strings.ReplaceAll(i.Val, "\n", ""), " ", "")
+		//	//	if strings.Contains(buf.String(), link) {
+		//	//		continue
+		//	//	} else {
+		//	//		println("Href Add: {", link, "}")
+		//	//		buf.WriteString(link + "\n")
+		//	//	}
+		//	//}
+		//	//
+		//	if i.Key == "href" {
+		//		return
+		//	}
+		//	//if i.Val == "se-section se-section-oglink se-l-image se-section-align-" {
+		//	//	return
+		//	//}
+		//}
 		if node.Data == "img" {
 			img := node.Attr[0].Val
 			if strings.Contains(img, "w80_blur") {
-				strings.ReplaceAll(img, "w80_blur", "w773")
+				img = strings.ReplaceAll(img, "w80_blur", "w773")
 			}
 			buf.WriteString(img + "\n")
 		}
 
-		for _, i := range node.Attr {
-			if i.Key == "href" {
-				link := i.Val
-				println(link)
-				buf.WriteString(link + "\n")
+		if node.Type == html.TextNode {
+			if !strings.Contains(node.Data, "\n") {
+				data := node.Data
+				//if strings.Contains(data, "https://") {
+				//	return
+				//}
+				buf.WriteString(data + "\n")
 			}
 		}
 
