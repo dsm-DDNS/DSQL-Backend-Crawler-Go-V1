@@ -2,3 +2,7 @@
 .idea/
 
 properties.yaml
+
+resources/s3.yaml
+
+resources/
